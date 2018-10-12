@@ -10,6 +10,7 @@
 
 #include <valijson/adapters/adapter.hpp>
 #include <valijson/constraints/concrete_constraints.hpp>
+#include <valijson/internal/debug.hpp>
 #include <valijson/internal/json_pointer.hpp>
 #include <valijson/internal/json_reference.hpp>
 #include <valijson/internal/uri.hpp>
@@ -593,6 +594,15 @@ private:
             "SchemaParser::populateSchema must be invoked with an "
             "appropriate Adapter implementation");
 
+        if (!node.isObject()) {
+            std::string s;
+            s += "Expected node at ";
+            s += nodePath;
+            s += " to contain schema object; actual node type is: ";
+            s += internal::nodeTypeAsString(node);
+            throw std::runtime_error(s);
+        }
+
         const typename AdapterType::Object object = node.asObject();
         typename AdapterType::Object::const_iterator itr(object.end());
 
@@ -940,7 +950,7 @@ private:
     {
         std::string jsonRef;
         if (!extractJsonReference(node, jsonRef)) {
-            populateSchema(rootSchema, rootNode, node, subschema, currentScope, 
+            populateSchema(rootSchema, rootNode, node, subschema, currentScope,
                     nodePath, fetchDoc, parentSchema, ownName, docCache,
                     schemaCache);
             return;
@@ -1253,14 +1263,14 @@ private:
      * @brief   Make a new ItemsConstraint object.
      *
      * @param   rootSchema           The Schema instance, and root subschema,
-     *                               through which other subschemas can be 
+     *                               through which other subschemas can be
      *                               created and modified
      * @param   rootNode             Reference to the node from which JSON
      *                               References will be resolved when they refer
      *                               to the current document; used for recursive
      *                               parsing of schemas
      * @param   items                Optional pointer to a JSON node containing
-     *                               an object mapping property names to 
+     *                               an object mapping property names to
      *                               schemas.
      * @param   additionalItems      Optional pointer to a JSON node containing
      *                               an additional properties schema or a
@@ -1359,14 +1369,14 @@ private:
      * @brief   Make a new ItemsConstraint object.
      *
      * @param   rootSchema           The Schema instance, and root subschema,
-     *                               through which other subschemas can be 
+     *                               through which other subschemas can be
      *                               created and modified
      * @param   rootNode             Reference to the node from which JSON
      *                               References will be resolved when they refer
      *                               to the current document; used for recursive
      *                               parsing of schemas
      * @param   items                Optional pointer to a JSON node containing
-     *                               an object mapping property names to 
+     *                               an object mapping property names to
      *                               schemas.
      * @param   additionalItems      Optional pointer to a JSON node containing
      *                               an additional properties schema or a
@@ -1807,7 +1817,7 @@ private:
      * @brief   Make a new Properties object.
      *
      * @param   rootSchema                The Schema instance, and root
-     *                                    subschema, through which other 
+     *                                    subschema, through which other
      *                                    subschemas can be created and modified
      * @param   rootNode                  Reference to the node from which JSON
      *                                    References will be resolved when they

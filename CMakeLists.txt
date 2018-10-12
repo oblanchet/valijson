@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 3.1)
 project (valijson)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 option(INSTALL_HEADERS "Install valijson Headers." FALSE)
 option(BUILD_EXAMPLES "Build valijson Examples." FALSE)
@@ -13,7 +13,7 @@ if(INSTALL_HEADERS)
     install(DIRECTORY include/ DESTINATION include)
 endif()
 
-if(!BUILD_TESTS AND !BUILD_EXAMPLES)
+if(NOT BUILD_TESTS AND NOT BUILD_EXAMPLES)
     return()
 endif()
 
@@ -65,7 +65,7 @@ include_directories(SYSTEM
     thirdparty/jsoncpp-0.9.4/include
     thirdparty/rapidjson-1.0.2/include
     thirdparty/picojson-1.3.0
-    thirdparty/nlohmann-json-1.1.0
+    thirdparty/nlohmann-json-3.1.2
     ${Boost_INCLUDE_DIRS}
     ${Qt5Core_INCLUDE_DIRS}
 )
