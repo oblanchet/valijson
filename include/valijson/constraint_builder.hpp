@@ -1,6 +1,4 @@
 #pragma once
-#ifndef __VALIJSON_CONSTRAINT_BUILDER_HPP
-#define __VALIJSON_CONSTRAINT_BUILDER_HPP
 
 namespace valijson {
 
@@ -15,11 +13,9 @@ namespace constraints {
 class ConstraintBuilder
 {
 public:
-    virtual ~ConstraintBuilder() {}
+    virtual ~ConstraintBuilder() = default;
 
     virtual constraints::Constraint * make(const adapters::Adapter &) const = 0;
 };
 
 }  // namespace valijson
-
-#endif

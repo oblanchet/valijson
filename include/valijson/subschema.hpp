@@ -1,6 +1,4 @@
 #pragma once
-#ifndef __VALIJSON_SUBSCHEMA_HPP
-#define __VALIJSON_SUBSCHEMA_HPP
 
 #include <vector>
 
@@ -8,6 +6,7 @@
 
 #include <valijson/constraints/constraint.hpp>
 #include <valijson/internal/optional.hpp>
+#include <valijson/exceptions.hpp>
 
 namespace valijson {
 
@@ -17,13 +16,14 @@ namespace valijson {
  * While all JSON Schemas have at least one sub-schema, the root, some will
  * have additional sub-schemas that are defined as part of constraints that are
  * included in the schema. For example, a 'oneOf' constraint maintains a set of
- * references to one or more nested sub-schemas. As per the definition of a 
+ * references to one or more nested sub-schemas. As per the definition of a
  * oneOf constraint, a document is valid within that constraint if it validates
  * against one of the nested sub-schemas.
  */
 class Subschema
 {
 public:
+
     /// Typedef for custom new-/malloc-like function
     typedef void * (*CustomAlloc)(size_t size);
 
@@ -37,12 +37,19 @@ public:
     /// instances owned by a Schema.
     typedef std::function<bool (const Constraint &)> ApplyFunction;
 
+    // Disable copy construction
+    Subschema(const Subschema &) = delete;
+
+    // Disable copy assignment
+    Subschema & operator=(const Subschema &) = delete;
+
     /**
      * @brief  Construct a new Subschema object
      */
     Subschema()
-      : allocFn(::operator new)
-      , freeFn(::operator delete) { }
+      : m_allocFn(::operator new)
+      , m_freeFn(::operator delete)
+      , m_alwaysInvalid(false) { }
 
     /**
      * @brief  Construct a new Subschema using custom memory management
@@ -54,26 +61,30 @@ public:
      *                  the `customAlloc` function
      */
     Subschema(CustomAlloc allocFn, CustomFree freeFn)
-      : allocFn(allocFn)
-      , freeFn(freeFn) { }
+      : m_allocFn(allocFn)
+      , m_freeFn(freeFn)
+      , m_alwaysInvalid(false) { }
 
     /**
      * @brief  Clean up and free all memory managed by the Subschema
      */
     virtual ~Subschema()
     {
+#if VALIJSON_USE_EXCEPTIONS
         try {
-            for (std::vector<const Constraint *>::iterator itr =
-                    constraints.begin(); itr != constraints.end(); ++itr) {
-                Constraint *constraint = const_cast<Constraint *>(*itr);
+#endif
+            for (auto constConstraint : m_constraints) {
+                auto *constraint = const_cast<Constraint *>(constConstraint);
                 constraint->~Constraint();
-                freeFn(constraint);
+                m_freeFn(constraint);
             }
-            constraints.clear();
+            m_constraints.clear();
+#if VALIJSON_USE_EXCEPTIONS
         } catch (const std::exception &e) {
             fprintf(stderr, "Caught an exception in Subschema destructor: %s",
                     e.what());
         }
+#endif
     }
 
     /**
@@ -89,14 +100,18 @@ public:
      */
     void addConstraint(const Constraint &constraint)
     {
-        Constraint *newConstraint = constraint.clone(allocFn, freeFn);
+        Constraint *newConstraint = constraint.clone(m_allocFn, m_freeFn);
+#if VALIJSON_USE_EXCEPTIONS
         try {
-            constraints.push_back(newConstraint);
+#endif
+            m_constraints.push_back(newConstraint);
+#if VALIJSON_USE_EXCEPTIONS
         } catch (...) {
             newConstraint->~Constraint();
-            freeFn(newConstraint);
+            m_freeFn(newConstraint);
             throw;
         }
+#endif
     }
 
     /**
@@ -113,7 +128,7 @@ public:
     bool apply(ApplyFunction &applyFunction) const
     {
         bool allTrue = true;
-        for (const Constraint *constraint : constraints) {
+        for (const Constraint *constraint : m_constraints) {
             allTrue = allTrue && applyFunction(*constraint);
         }
 
@@ -132,13 +147,18 @@ public:
      */
     bool applyStrict(ApplyFunction &applyFunction) const
     {
-        for (const Constraint *constraint : constraints) {
+        for (const Constraint *constraint : m_constraints) {
             if (!applyFunction(*constraint)) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    bool getAlwaysInvalid() const
+    {
+        return m_alwaysInvalid;
     }
 
     /**
@@ -150,11 +170,11 @@ public:
      */
     std::string getDescription() const
     {
-        if (description) {
-            return *description;
+        if (m_description) {
+            return *m_description;
         }
 
-        throw std::runtime_error("Schema does not have a description");
+        throwRuntimeError("Schema does not have a description");
     }
 
     /**
@@ -166,11 +186,11 @@ public:
      */
     std::string getId() const
     {
-        if (id) {
-            return *id;
+        if (m_id) {
+            return *m_id;
         }
 
-        throw std::runtime_error("Schema does not have an ID");
+        throwRuntimeError("Schema does not have an ID");
     }
 
     /**
@@ -182,11 +202,11 @@ public:
      */
     std::string getTitle() const
     {
-        if (title) {
-            return *title;
+        if (m_title) {
+            return *m_title;
         }
 
-        throw std::runtime_error("Schema does not have a title");
+        throwRuntimeError("Schema does not have a title");
     }
 
     /**
@@ -196,7 +216,7 @@ public:
      */
     bool hasDescription() const
     {
-        return static_cast<bool>(description);
+        return static_cast<bool>(m_description);
     }
 
     /**
@@ -206,7 +226,7 @@ public:
      */
     bool hasId() const
     {
-        return static_cast<bool>(id);
+        return static_cast<bool>(m_id);
     }
 
     /**
@@ -216,7 +236,12 @@ public:
      */
     bool hasTitle() const
     {
-        return static_cast<bool>(title);
+        return static_cast<bool>(m_title);
+    }
+
+    void setAlwaysInvalid(bool value)
+    {
+        m_alwaysInvalid = value;
     }
 
     /**
@@ -231,12 +256,12 @@ public:
      */
     void setDescription(const std::string &description)
     {
-        this->description = description;
+        m_description = description;
     }
 
     void setId(const std::string &id)
     {
-        this->id = id;
+        m_id = id;
     }
 
     /**
@@ -244,43 +269,37 @@ public:
      *
      * The title will not be used for validation, but may be used as part
      * of the user interface for interacting with schemas and sub-schema. As an
-     * example, it may be used as part of the validation error descriptions 
+     * example, it may be used as part of the validation error descriptions
      * that are produced by the Validator and ValidationVisitor classes.
      *
      * @param  title  new title
      */
     void setTitle(const std::string &title)
     {
-        this->title = title;
+        m_title = title;
     }
 
 protected:
 
-    CustomAlloc allocFn;
+    CustomAlloc m_allocFn;
 
-    CustomFree freeFn;
+    CustomFree m_freeFn;
 
 private:
 
-    // Disable copy construction
-    Subschema(const Subschema &);
-
-    // Disable copy assignment
-    Subschema & operator=(const Subschema &);
+    bool m_alwaysInvalid;
 
     /// List of pointers to constraints that apply to this schema.
-    std::vector<const Constraint *> constraints;
+    std::vector<const Constraint *> m_constraints;
 
     /// Schema description (optional)
-    opt::optional<std::string> description;
+    opt::optional<std::string> m_description;
 
     /// Id to apply when resolving the schema URI
-    opt::optional<std::string> id;
+    opt::optional<std::string> m_id;
 
     /// Title string associated with the schema (optional)
-    opt::optional<std::string> title;
+    opt::optional<std::string> m_title;
 };
 
 } // namespace valijson
-
-#endif

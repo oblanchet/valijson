@@ -17,6 +17,7 @@
 # include <functional>
 # include <string>
 # include <stdexcept>
+# include <valijson/exceptions.hpp>
 
 # define TR2_OPTIONAL_REQUIRES(...) typename enable_if<__VA_ARGS__::value, bool>::type = false
 
@@ -523,15 +524,15 @@ namespace std{
             }
 
             constexpr T const& value() const& {
-    return initialized() ? contained_val() : (throw bad_optional_access("bad optional access"), contained_val());
+    return initialized() ? contained_val() : (valijson::throwRuntimeError("bad optional access"), contained_val());
             }
 
             OPTIONAL_MUTABLE_CONSTEXPR T& value() & {
-    return initialized() ? contained_val() : (throw bad_optional_access("bad optional access"), contained_val());
+    return initialized() ? contained_val() : (valijson::throwRuntimeError("bad optional access"), contained_val());
             }
 
             OPTIONAL_MUTABLE_CONSTEXPR T&& value() && {
-    if (!initialized()) throw bad_optional_access("bad optional access");
+    if (!initialized()) valijson::throwRuntimeError("bad optional access");
         return std::move(contained_val());
             }
 
@@ -552,11 +553,11 @@ namespace std{
             }
 
             constexpr T const& value() const {
-    return initialized() ? contained_val() : (throw bad_optional_access("bad optional access"), contained_val());
+    return initialized() ? contained_val() : (valijson::throwRuntimeError("bad optional access"), contained_val());
             }
 
             T& value() {
-    return initialized() ? contained_val() : (throw bad_optional_access("bad optional access"), contained_val());
+    return initialized() ? contained_val() : (valijson::throwRuntimeError("bad optional access"), contained_val());
             }
 
 # endif
@@ -685,7 +686,7 @@ namespace std{
             }
 
             constexpr T& value() const {
-    return ref ? *ref : (throw bad_optional_access("bad optional access"), *ref);
+    return ref ? *ref : (valijson::throwRuntimeError("bad optional access"), *ref);
             }
 
             explicit constexpr operator bool() const noexcept {
@@ -993,21 +994,21 @@ namespace std{
         {
             x.swap(y);
         }
-        
-        
+
+
         template <class T>
         constexpr optional<typename decay<T>::type> make_optional(T&& v)
         {
             return optional<typename decay<T>::type>(constexpr_forward<T>(v));
         }
-        
+
         template <class X>
         constexpr optional<X&> make_optional(reference_wrapper<X> v)
         {
             return optional<X&>(v.get());
         }
-        
-        
+
+
     } // namespace experimental
 } // namespace std
 
@@ -1018,18 +1019,18 @@ namespace std
     {
         typedef typename hash<T>::result_type result_type;
         typedef std::experimental::optional<T> argument_type;
-        
+
         constexpr result_type operator()(argument_type const& arg) const {
             return arg ? std::hash<T>{}(*arg) : result_type{};
         }
     };
-    
+
     template <typename T>
     struct hash<std::experimental::optional<T&>>
     {
         typedef typename hash<T>::result_type result_type;
         typedef std::experimental::optional<T&> argument_type;
-        
+
         constexpr result_type operator()(argument_type const& arg) const {
             return arg ? std::hash<T>{}(*arg) : result_type{};
         }

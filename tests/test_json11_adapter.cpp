@@ -1,5 +1,3 @@
-#ifdef VALIJSON_BUILD_CXX11_ADAPTERS
-
 #include <gtest/gtest.h>
 
 #include <valijson/adapters/json11_adapter.hpp>
@@ -24,12 +22,13 @@ TEST_F(TestJson11Adapter, BasicArrayIteration)
     // Ensure that wrapping the document preserves the array and does not allow
     // it to be cast to other types
     valijson::adapters::Json11Adapter adapter(document);
+#if VALIJSON_USE_EXCEPTIONS
     ASSERT_NO_THROW( adapter.getArray() );
     ASSERT_ANY_THROW( adapter.getBool() );
     ASSERT_ANY_THROW( adapter.getDouble() );
     ASSERT_ANY_THROW( adapter.getObject() );
     ASSERT_ANY_THROW( adapter.getString() );
-
+#endif
     // Ensure that the array contains the expected number of elements
     EXPECT_EQ( numElements, adapter.getArray().size() );
 
@@ -61,12 +60,13 @@ TEST_F(TestJson11Adapter, BasicObjectIteration)
     // Ensure that wrapping the document preserves the object and does not
     // allow it to be cast to other types
     valijson::adapters::Json11Adapter adapter(document);
+#if VALIJSON_USE_EXCEPTIONS
     ASSERT_NO_THROW( adapter.getObject() );
     ASSERT_ANY_THROW( adapter.getArray() );
     ASSERT_ANY_THROW( adapter.getBool() );
     ASSERT_ANY_THROW( adapter.getDouble() );
     ASSERT_ANY_THROW( adapter.getString() );
-
+#endif
     // Ensure that the object contains the expected number of members
     EXPECT_EQ( numElements, adapter.getObject().size() );
 
@@ -82,6 +82,3 @@ TEST_F(TestJson11Adapter, BasicObjectIteration)
     // Ensure that the correct number of elements were iterated over
     EXPECT_EQ( numElements, expectedValue );
 }
-
-#endif // VALIJSON_BUILD_CXX11_ADAPTERS
-

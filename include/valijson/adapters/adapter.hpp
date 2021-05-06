@@ -1,6 +1,4 @@
 #pragma once
-#ifndef __VALIJSON_ADAPTERS_ADAPTER_HPP
-#define __VALIJSON_ADAPTERS_ADAPTER_HPP
 
 #include <functional>
 
@@ -37,7 +35,7 @@ public:
      * @brief   Virtual destructor defined to ensure deletion via base-class
      *          pointers is safe.
      */
-    virtual ~Adapter() { };
+    virtual ~Adapter() = default;
 
     /**
      * @brief   Apply a callback function to each value in an array.
@@ -472,5 +470,3 @@ struct AdapterTraits
 
 }  // namespace adapters
 }  // namespace valijson
-
-#endif

@@ -24,8 +24,6 @@
  */
 
 #pragma once
-#ifndef __VALIJSON_ADAPTERS_JSON11_ADAPTER_HPP
-#define __VALIJSON_ADAPTERS_JSON11_ADAPTER_HPP
 
 #include <string>
 #include <json11.hpp>
@@ -33,6 +31,7 @@
 #include <valijson/adapters/adapter.hpp>
 #include <valijson/adapters/basic_adapter.hpp>
 #include <valijson/adapters/frozen_value.hpp>
+#include <valijson/exceptions.hpp>
 
 namespace valijson {
 namespace adapters {
@@ -63,7 +62,7 @@ public:
 
     /// Construct a Json11Array referencing an empty array.
     Json11Array()
-      : value(emptyArray()) { }
+      : m_value(emptyArray()) { }
 
     /**
      * @brief   Construct a Json11Array referencing a specific Json11
@@ -75,10 +74,10 @@ public:
      * an array.
      */
     Json11Array(const json11::Json &value)
-      : value(value)
+      : m_value(value)
     {
         if (!value.is_array()) {
-            throw std::runtime_error("Value is not an array.");
+            throwRuntimeError("Value is not an array.");
         }
     }
 
@@ -101,7 +100,7 @@ public:
     /// Return the number of elements in the array
     size_t size() const
     {
-        return value.array_items().size();
+        return m_value.array_items().size();
     }
 
 private:
@@ -118,7 +117,7 @@ private:
     }
 
     /// Reference to the contained value
-    const json11::Json &value;
+    const json11::Json &m_value;
 };
 
 /**
@@ -141,7 +140,7 @@ public:
 
     /// Construct a Json11Object referencing an empty object singleton.
     Json11Object()
-      : value(emptyObject()) { }
+      : m_value(emptyObject()) { }
 
     /**
      * @brief   Construct a Json11Object referencing a specific Json11
@@ -153,10 +152,10 @@ public:
      * an object.
      */
     Json11Object(const json11::Json &value)
-      : value(value)
+      : m_value(value)
     {
         if (!value.is_object()) {
-            throw std::runtime_error("Value is not an object.");
+            throwRuntimeError("Value is not an object.");
         }
     }
 
@@ -191,7 +190,7 @@ public:
     /// Returns the number of members belonging to this object.
     size_t size() const
     {
-        return value.object_items().size();
+        return m_value.object_items().size();
     }
 
 private:
@@ -208,7 +207,7 @@ private:
     }
 
     /// Reference to the contained object
-    const json11::Json &value;
+    const json11::Json &m_value;
 };
 
 /**
@@ -229,20 +228,20 @@ public:
      *
      * @param  source  the Json11 value to be copied
      */
-    explicit Json11FrozenValue(const json11::Json &source)
-      : value(source) { }
+    explicit Json11FrozenValue(json11::Json source)
+      : m_value(std::move(source)) { }
 
-    virtual FrozenValue * clone() const
+    FrozenValue * clone() const override
     {
-        return new Json11FrozenValue(value);
+        return new Json11FrozenValue(m_value);
     }
 
-    virtual bool equalTo(const Adapter &other, bool strict) const;
+    bool equalTo(const Adapter &other, bool strict) const override;
 
 private:
 
     /// Stored Json11 value
-    json11::Json value;
+    json11::Json m_value;
 };
 
 /**
@@ -265,11 +264,11 @@ public:
 
     /// Construct a wrapper for the empty object singleton
     Json11Value()
-      : value(emptyObject()) { }
+      : m_value(emptyObject()) { }
 
     /// Construct a wrapper for a specific Json11 value
     Json11Value(const json11::Json &value)
-      : value(value) { }
+      : m_value(value) { }
 
     /**
      * @brief   Create a new Json11FrozenValue instance that contains the
@@ -280,7 +279,7 @@ public:
      */
     FrozenValue * freeze() const
     {
-        return new Json11FrozenValue(value);
+        return new Json11FrozenValue(m_value);
     }
 
     /**
@@ -294,11 +293,11 @@ public:
      */
     opt::optional<Json11Array> getArrayOptional() const
     {
-        if (value.is_array()) {
-            return opt::make_optional(Json11Array(value));
+        if (m_value.is_array()) {
+            return opt::make_optional(Json11Array(m_value));
         }
 
-        return opt::optional<Json11Array>();
+        return {};
     }
 
     /**
@@ -314,8 +313,8 @@ public:
      */
     bool getArraySize(size_t &result) const
     {
-        if (value.is_array()) {
-            result = value.array_items().size();
+        if (m_value.is_array()) {
+            result = m_value.array_items().size();
             return true;
         }
 
@@ -324,8 +323,8 @@ public:
 
     bool getBool(bool &result) const
     {
-        if (value.is_bool()) {
-            result = value.bool_value();
+        if (m_value.is_bool()) {
+            result = m_value.bool_value();
             return true;
         }
 
@@ -334,8 +333,8 @@ public:
 
     bool getDouble(double &result) const
     {
-        if (value.is_number()) {
-            result = value.number_value();
+        if (m_value.is_number()) {
+            result = m_value.number_value();
             return true;
         }
 
@@ -344,8 +343,8 @@ public:
 
     bool getInteger(int64_t &result) const
     {
-        if(isInteger()) {
-            result = value.int_value();
+        if (isInteger()) {
+            result = m_value.int_value();
             return true;
         }
         return false;
@@ -362,11 +361,11 @@ public:
      */
     opt::optional<Json11Object> getObjectOptional() const
     {
-        if (value.is_object()) {
-            return opt::make_optional(Json11Object(value));
+        if (m_value.is_object()) {
+            return opt::make_optional(Json11Object(m_value));
         }
 
-        return opt::optional<Json11Object>();
+        return {};
     }
 
     /**
@@ -382,8 +381,8 @@ public:
      */
     bool getObjectSize(size_t &result) const
     {
-        if (value.is_object()) {
-            result = value.object_items().size();
+        if (m_value.is_object()) {
+            result = m_value.object_items().size();
             return true;
         }
 
@@ -392,8 +391,8 @@ public:
 
     bool getString(std::string &result) const
     {
-        if (value.is_string()) {
-            result = value.string_value();
+        if (m_value.is_string()) {
+            result = m_value.string_value();
             return true;
         }
 
@@ -407,43 +406,42 @@ public:
 
     bool isArray() const
     {
-        return value.is_array();
+        return m_value.is_array();
     }
 
     bool isBool() const
     {
-        return value.is_bool();
+        return m_value.is_bool();
     }
 
     bool isDouble() const
     {
-        return value.is_number();
+        return m_value.is_number();
     }
 
     bool isInteger() const
     {
-        return value.is_number()
-            && value.int_value() == value.number_value();
+        return m_value.is_number() && m_value.int_value() == m_value.number_value();
     }
 
     bool isNull() const
     {
-        return value.is_null();
+        return m_value.is_null();
     }
 
     bool isNumber() const
     {
-        return value.is_number();
+        return m_value.is_number();
     }
 
     bool isObject() const
     {
-        return value.is_object();
+        return m_value.is_object();
     }
 
     bool isString() const
     {
-        return value.is_string();
+        return m_value.is_string();
     }
 
 private:
@@ -456,7 +454,7 @@ private:
     }
 
     /// Reference to the contained Json11 value.
-    const json11::Json &value;
+    const json11::Json &m_value;
 };
 
 /**
@@ -508,15 +506,14 @@ public:
      *
      * @param   itr  Json11 iterator to store
      */
-    Json11ArrayValueIterator(
-        const json11::Json::array::const_iterator &itr)
-      : itr(itr) { }
+    Json11ArrayValueIterator(const json11::Json::array::const_iterator &itr)
+      : m_itr(itr) { }
 
     /// Returns a Json11Adapter that contains the value of the current
     /// element.
     Json11Adapter operator*() const
     {
-        return Json11Adapter(*itr);
+        return Json11Adapter(*m_itr);
     }
 
     DerefProxy<Json11Adapter> operator->() const
@@ -537,43 +534,43 @@ public:
      */
     bool operator==(const Json11ArrayValueIterator &other) const
     {
-        return itr == other.itr;
+        return m_itr == other.m_itr;
     }
 
     bool operator!=(const Json11ArrayValueIterator &other) const
     {
-        return !(itr == other.itr);
+        return !(m_itr == other.m_itr);
     }
 
     const Json11ArrayValueIterator& operator++()
     {
-        itr++;
+        m_itr++;
 
         return *this;
     }
 
     Json11ArrayValueIterator operator++(int)
     {
-        Json11ArrayValueIterator iterator_pre(itr);
+        Json11ArrayValueIterator iterator_pre(m_itr);
         ++(*this);
         return iterator_pre;
     }
 
     const Json11ArrayValueIterator& operator--()
     {
-        itr--;
+        m_itr--;
 
         return *this;
     }
 
     void advance(std::ptrdiff_t n)
     {
-        itr += n;
+        m_itr += n;
     }
 
 private:
 
-    json11::Json::array::const_iterator itr;
+    json11::Json::array::const_iterator m_itr;
 };
 
 /**
@@ -598,9 +595,8 @@ public:
      *
      * @param   itr  Json11 iterator to store
      */
-    Json11ObjectMemberIterator(
-        const json11::Json::object::const_iterator &itr)
-      : itr(itr) { }
+    Json11ObjectMemberIterator(const json11::Json::object::const_iterator &itr)
+      : m_itr(itr) { }
 
     /**
      * @brief   Returns a Json11ObjectMember that contains the key and value
@@ -608,7 +604,7 @@ public:
      */
     Json11ObjectMember operator*() const
     {
-        return Json11ObjectMember(itr->first, itr->second);
+        return Json11ObjectMember(m_itr->first, m_itr->second);
     }
 
     DerefProxy<Json11ObjectMember> operator->() const
@@ -629,31 +625,31 @@ public:
      */
     bool operator==(const Json11ObjectMemberIterator &other) const
     {
-        return itr == other.itr;
+        return m_itr == other.m_itr;
     }
 
     bool operator!=(const Json11ObjectMemberIterator &other) const
     {
-        return !(itr == other.itr);
+        return !(m_itr == other.m_itr);
     }
 
     const Json11ObjectMemberIterator& operator++()
     {
-        itr++;
+        m_itr++;
 
         return *this;
     }
 
     Json11ObjectMemberIterator operator++(int)
     {
-        Json11ObjectMemberIterator iterator_pre(itr);
+        Json11ObjectMemberIterator iterator_pre(m_itr);
         ++(*this);
         return iterator_pre;
     }
 
     const Json11ObjectMemberIterator& operator--()
     {
-        itr--;
+        m_itr--;
 
         return *this;
     }
@@ -661,7 +657,7 @@ public:
 private:
 
     /// Iternal copy of the original Json11 iterator
-    json11::Json::object::const_iterator itr;
+    json11::Json::object::const_iterator m_itr;
 };
 
 /// Specialisation of the AdapterTraits template struct for Json11Adapter.
@@ -678,36 +674,34 @@ struct AdapterTraits<valijson::adapters::Json11Adapter>
 
 inline bool Json11FrozenValue::equalTo(const Adapter &other, bool strict) const
 {
-    return Json11Adapter(value).equalTo(other, strict);
+    return Json11Adapter(m_value).equalTo(other, strict);
 }
 
 inline Json11ArrayValueIterator Json11Array::begin() const
 {
-    return value.array_items().begin();
+    return m_value.array_items().begin();
 }
 
 inline Json11ArrayValueIterator Json11Array::end() const
 {
-    return value.array_items().end();
+    return m_value.array_items().end();
 }
 
 inline Json11ObjectMemberIterator Json11Object::begin() const
 {
-    return value.object_items().begin();
+    return m_value.object_items().begin();
 }
 
 inline Json11ObjectMemberIterator Json11Object::end() const
 {
-    return value.object_items().end();
+    return m_value.object_items().end();
 }
 
 inline Json11ObjectMemberIterator Json11Object::find(
     const std::string &propertyName) const
 {
-    return value.object_items().find(propertyName);
+    return m_value.object_items().find(propertyName);
 }
 
 }  // namespace adapters
 }  // namespace valijson
-
-#endif

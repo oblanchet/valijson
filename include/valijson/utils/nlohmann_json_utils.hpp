@@ -1,16 +1,16 @@
 #pragma once
-#ifndef VALIJSON_NLOHMANN_JSON_UTILS_HPP
-#define VALIJSON_NLOHMANN_JSON_UTILS_HPP
 
 #include <iostream>
 
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 #include <valijson/utils/file_utils.hpp>
+#include <valijson/exceptions.hpp>
 
 namespace valijson {
 namespace utils {
 
-inline bool loadDocument(const std::string &path, nlohmann::json &document) {
+inline bool loadDocument(const std::string &path, nlohmann::json &document)
+{
     // Load schema JSON from file
     std::string file;
     if (!loadFile(path, file)) {
@@ -20,6 +20,7 @@ inline bool loadDocument(const std::string &path, nlohmann::json &document) {
     }
 
     // Parse schema
+#if VALIJSON_USE_EXCEPTION
     try {
         document = nlohmann::json::parse(file);
     } catch (std::invalid_argument const& exception) {
@@ -27,11 +28,16 @@ inline bool loadDocument(const std::string &path, nlohmann::json &document) {
             << "Parse error:" << exception.what() << "\n";
         return false;
     }
+#else
+    document = nlohmann::json::parse(file, nullptr, false);
+    if (document.is_discarded()) {
+        std::cerr << "nlohmann::json failed to parse the document.";
+        return false;
+    }
+#endif
 
     return true;
 }
 
 }  // namespace utils
 }  // namespace valijson
-
-#endif //VALIJSON_NLOHMANN_JSON_UTILS_HPP

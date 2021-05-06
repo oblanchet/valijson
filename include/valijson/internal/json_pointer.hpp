@@ -1,6 +1,4 @@
 #pragma once
-#ifndef __VALIJSON_INTERNAL_JSON_POINTER_HPP
-#define __VALIJSON_INTERNAL_JSON_POINTER_HPP
 
 #include <algorithm>
 #include <cerrno>
@@ -11,19 +9,20 @@
 
 #include <valijson/adapters/adapter.hpp>
 #include <valijson/internal/optional.hpp>
+#include <valijson/exceptions.hpp>
 
 namespace valijson {
 namespace internal {
 namespace json_pointer {
 
 /**
- * @brief   Replace all occurrences of `search` with `replace`. Modifies `subject` in place
+ * @brief   Replace all occurrences of `search` with `replace`. Modifies `subject` in place.
  *
  * @param   subject  string to operate on
  * @param   search   string to search
  * @param   replace  replacement string
  */
-inline void replace_all_inplace(std::string& subject, const char* search,
+inline void replaceAllInPlace(std::string& subject, const char* search,
                                 const char* replace)
 {
     size_t pos = 0;
@@ -45,17 +44,17 @@ inline void replace_all_inplace(std::string& subject, const char* search,
 inline char decodePercentEncodedChar(const std::string &digits)
 {
     if (digits.length() != 2) {
-        throw std::runtime_error("Failed to decode %-encoded character '" +
+        throwRuntimeError("Failed to decode %-encoded character '" +
                 digits + "' due to unexpected number of characters; "
                 "expected two characters");
     }
 
     errno = 0;
     const char *begin = digits.c_str();
-    char *end = NULL;
+    char *end = nullptr;
     const unsigned long value = strtoul(begin, &end, 16);
     if (end != begin && *end != '\0') {
-        throw std::runtime_error("Failed to decode %-encoded character '" +
+        throwRuntimeError("Failed to decode %-encoded character '" +
                 digits + "'");
     }
 
@@ -96,21 +95,24 @@ inline std::string extractReferenceToken(std::string::const_iterator begin,
     std::string token(begin, end);
 
     // Replace JSON Pointer-specific escaped character sequences
-    replace_all_inplace(token, "~1", "/");
-    replace_all_inplace(token, "~0", "~");
+    replaceAllInPlace(token, "~1", "/");
+    replaceAllInPlace(token, "~0", "~");
 
     // Replace %-encoded character sequences with their actual characters
     for (size_t n = token.find('%'); n != std::string::npos;
             n = token.find('%', n + 1)) {
 
+#if VALIJSON_USE_EXCEPTIONS
         try {
+#endif
             const char c = decodePercentEncodedChar(token.substr(n + 1, 2));
             token.replace(n, 3, &c, 1);
-
+#if VALIJSON_USE_EXCEPTIONS
         } catch (const std::runtime_error &e) {
-            throw std::runtime_error(
+            throwRuntimeError(
                     std::string(e.what()) + "; in token: " + token);
         }
+#endif
     }
 
     return token;
@@ -161,7 +163,7 @@ inline AdapterType resolveJsonPointer(
 
     // Reference tokens must begin with a leading slash
     if (*jsonPointerItr != '/') {
-        throw std::runtime_error("Expected reference token to begin with "
+        throwRuntimeError("Expected reference token to begin with "
                 "leading slash; remaining tokens: " +
                 std::string(jsonPointerItr, jsonPointerEnd));
     }
@@ -180,25 +182,29 @@ inline AdapterType resolveJsonPointer(
         return resolveJsonPointer(node, jsonPointer, jsonPointerNext);
 
     } else if (node.isArray()) {
-        if (referenceToken.compare("-") == 0) {
-            throw std::runtime_error("Hyphens cannot be used as array indices "
+        if (referenceToken == "-") {
+            throwRuntimeError("Hyphens cannot be used as array indices "
                     "since the requested array element does not yet exist");
         }
 
+#if VALIJSON_USE_EXCEPTIONS
         try {
+#endif
             // Fragment must be non-negative integer
             const uint64_t index = std::stoul(referenceToken);
             typedef typename AdapterType::Array Array;
-            typename Array::const_iterator itr = node.asArray().begin();
+            const Array arr = node.asArray();
+            typename Array::const_iterator itr = arr.begin();
+            const uint64_t arrSize = arr.size();
 
-            if (index > node.asArray().size() - 1) {
-                throw std::runtime_error("Expected reference token to identify "
+            if (arrSize == 0 || index > arrSize - 1) {
+                throwRuntimeError("Expected reference token to identify "
                         "an element in the current array, but array index is "
                         "out of bounds; actual token: " + referenceToken);
             }
 
             if (index > static_cast<uint64_t>(std::numeric_limits<std::ptrdiff_t>::max())) {
-                throw std::runtime_error("Array index out of bounds; hard "
+                throwRuntimeError("Array index out of bounds; hard "
                         "limit is " + std::to_string(
                                 std::numeric_limits<std::ptrdiff_t>::max()));
             }
@@ -208,30 +214,35 @@ inline AdapterType resolveJsonPointer(
             // Recursively process the remaining tokens
             return resolveJsonPointer(*itr, jsonPointer, jsonPointerNext);
 
+#if VALIJSON_USE_EXCEPTIONS
         } catch (std::invalid_argument &) {
-            throw std::runtime_error("Expected reference token to contain a "
+            throwRuntimeError("Expected reference token to contain a "
                     "non-negative integer to identify an element in the "
                     "current array; actual token: " + referenceToken);
         }
-
+#endif
     } else if (node.maybeObject()) {
         // Fragment must identify a member of the candidate object
         typedef typename AdapterType::Object Object;
-        typename Object::const_iterator itr = node.asObject().find(
+
+        const Object object = node.asObject();
+        typename Object::const_iterator itr = object.find(
                 referenceToken);
-        if (itr == node.asObject().end()) {
-            throw std::runtime_error("Expected reference token to identify an "
+        if (itr == object.end()) {
+            throwRuntimeError("Expected reference token to identify an "
                     "element in the current object; "
                     "actual token: " + referenceToken);
+            abort();
         }
 
         // Recursively process the remaining tokens
         return resolveJsonPointer(itr->second, jsonPointer, jsonPointerNext);
     }
 
-    throw std::runtime_error("Expected end of JSON Pointer, but at least "
+    throwRuntimeError("Expected end of JSON Pointer, but at least "
             "one reference token has not been processed; remaining tokens: " +
             std::string(jsonPointerNext, jsonPointerEnd));
+    abort();
 }
 
 /**
@@ -253,5 +264,3 @@ inline AdapterType resolveJsonPointer(
 } // namespace json_pointer
 } // namespace internal
 } // namespace valijson
-
-#endif

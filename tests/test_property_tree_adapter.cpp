@@ -12,7 +12,7 @@ TEST_F(TestPropertyTreeAdapter, BasicArrayIteration)
 {
     const unsigned int numElements = 10;
 
-    // Create a boost property that is equivalent to a JSON array containing a
+    // Create a boost property tree that is equivalent to a JSON array containing a
     // list of numbers.
     boost::property_tree::ptree document;
     for (unsigned int i = 0; i < numElements; i++) {
@@ -23,11 +23,13 @@ TEST_F(TestPropertyTreeAdapter, BasicArrayIteration)
     // Ensure that wrapping the document preserves the array and does not allow
     // it to be cast to other types
     valijson::adapters::PropertyTreeAdapter adapter(document);
+#if VALIJSON_USE_EXCEPTIONS
     ASSERT_NO_THROW( adapter.getArray() );
     ASSERT_ANY_THROW( adapter.getBool() );
     ASSERT_ANY_THROW( adapter.getDouble() );
     ASSERT_ANY_THROW( adapter.getObject() );
     ASSERT_ANY_THROW( adapter.getString() );
+#endif
 
     // Ensure that the array contains the expected number of elements
     EXPECT_EQ( numElements, adapter.getArray().size() );
@@ -50,7 +52,7 @@ TEST_F(TestPropertyTreeAdapter, BasicObjectIteration)
 {
     const unsigned int numElements = 10;
 
-    // Create a rapidjson document that consists of an object that maps numeric
+    // Create a boost property tree that consists of an object that maps numeric
     // strings their corresponding numeric values
     boost::property_tree::ptree document;
     for (unsigned int i = 0; i < numElements; i++) {
@@ -62,11 +64,13 @@ TEST_F(TestPropertyTreeAdapter, BasicObjectIteration)
     // Ensure that wrapping the document preserves the object and does not
     // allow it to be cast to other types
     valijson::adapters::PropertyTreeAdapter adapter(document);
+#if VALIJSON_USE_EXCEPTIONS
     ASSERT_NO_THROW( adapter.getObject() );
     ASSERT_ANY_THROW( adapter.getArray() );
     ASSERT_ANY_THROW( adapter.getBool() );
     ASSERT_ANY_THROW( adapter.getDouble() );
     ASSERT_ANY_THROW( adapter.getString() );
+#endif
 
     // Ensure that the object contains the expected number of members
     EXPECT_EQ( numElements, adapter.getObject().size() );

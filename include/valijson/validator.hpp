@@ -1,6 +1,4 @@
 #pragma once
-#ifndef __VALIJSON_VALIDATOR_HPP
-#define __VALIJSON_VALIDATOR_HPP
 
 #include <valijson/schema.hpp>
 #include <valijson/validation_visitor.hpp>
@@ -61,7 +59,7 @@ public:
     {
         // Construct a ValidationVisitor to perform validation at the root level
         ValidationVisitor<AdapterType> v(target,
-                std::vector<std::string>(1, "<root>"), strictTypes, results);
+                std::vector<std::string>(1, "<root>"), strictTypes, results, regexesCache);
 
         return v.validateSchema(schema);
     }
@@ -71,8 +69,9 @@ private:
     /// Flag indicating that strict type comparisons should be used
     const bool strictTypes;
 
+    /// Cached regex objects for pattern constraint. Key - pattern.
+    std::unordered_map<std::string, std::regex> regexesCache;
+
 };
 
 }  // namespace valijson
-
-#endif
